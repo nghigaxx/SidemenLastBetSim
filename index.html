@@ -336,7 +336,7 @@ async function calculate() {
   const bal = SCORES[selectedPlayer];
 
   const el = document.getElementById('result-prob');
-  el.textContent = prob.toFixed(2) + '%';
+  el.textContent = prob.toFixed(7) + '%';
   el.style.color = prob >= 20 ? 'var(--accent2)' : prob >= 10 ? 'var(--accent3)' : 'var(--accent)';
 
   document.getElementById('result-sub').textContent =
@@ -373,7 +373,7 @@ async function sweepAll() {
   }
 
   const best = results.reduce((a, b) => b.prob > a.prob ? b : a);
-  status.textContent = `Optimal: £${best.bet.toLocaleString()} → ${best.prob.toFixed(2)}% win probability`;
+  status.textContent = `Optimal: £${best.bet.toLocaleString()} → ${best.prob.toFixed(7)}% win probability`;
   sweepBtn.disabled = false;
   submitBtn.disabled = false;
   showSweepModal(results, best.bet, p);
