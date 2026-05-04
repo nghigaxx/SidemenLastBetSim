@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sidemen Last Bet Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f; --surface: #131318; --card: #1a1a23; --border: #2a2a38;
+    --accent: #ff3c5f; --accent2: #00e5a0; --accent3: #ffd166;
+    --muted: #5a5a72; --text: #e8e8f0; --text2: #9090aa;
+    --mono: 'Space Mono', monospace; --sans: 'DM Sans', sans-serif; --display: 'Bebas Neue', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; padding:24px 16px 48px; }
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:0.4;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+  .container { max-width:820px; margin:0 auto; position:relative; z-index:1; }
+
+  header { text-align:center; margin-bottom:28px; }
+  header .eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:0.2em; color:var(--accent); text-transform:uppercase; margin-bottom:8px; }
+  header h1 { font-family:var(--display); font-size:clamp(40px,8vw,72px); line-height:0.95; letter-spacing:0.03em; }
+  header h1 span { color:var(--accent); }
+  header p { margin-top:10px; font-size:12px; color:var(--text2); font-family:var(--mono); }
+
+  .scoreboard { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:24px; }
+  .score-card {
+    background:var(--card); border:2px solid var(--border); border-radius:8px;
+    padding:10px 6px; text-align:center; cursor:pointer;
+    transition:border-color 0.2s, background 0.2s, transform 0.15s; user-select:none;
+  }
+  .score-card:hover { border-color:var(--muted); transform:translateY(-2px); }
+  .score-card.selected { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 10%,var(--card)); }
+  .score-card .pos { font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:3px; }
+  .score-card.selected .pos { color:var(--accent); }
+  .score-card .bal { font-family:var(--display); font-size:15px; color:var(--text); }
+  .score-card.selected .bal { color:var(--accent); }
+  .score-card .you-tag { font-family:var(--mono); font-size:9px; color:var(--accent); margin-top:3px; visibility:hidden; }
+  .score-card.selected .you-tag { visibility:visible; }
+
+  .bet-panel { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:24px; margin-bottom:16px; }
+  .bet-panel-header { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; }
+  .bet-panel-title { font-family:var(--mono); font-size:11px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text2); }
+  .bet-panel-player { font-family:var(--display); font-size:22px; color:var(--accent); }
+  .bet-big { font-family:var(--display); font-size:64px; color:var(--accent); line-height:1; letter-spacing:0.02em; margin-bottom:4px; }
+  .bet-note { font-family:var(--mono); font-size:11px; color:var(--muted); margin-bottom:18px; }
+
+  input[type=range] { -webkit-appearance:none; width:100%; height:4px; background:var(--border); border-radius:2px; outline:none; cursor:pointer; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
+    background:var(--accent); cursor:pointer; transition:transform 0.15s;
+    box-shadow:0 0 14px color-mix(in srgb,var(--accent) 55%,transparent);
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.25); }
+
+  .slider-labels { display:flex; justify-content:space-between; margin-top:6px; font-family:var(--mono); font-size:10px; color:var(--muted); }
+
+  .outcomes { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
+  .outcome { border-radius:8px; padding:14px; text-align:center; }
+  .outcome.win { background:color-mix(in srgb,var(--accent2) 10%,var(--card)); border:1px solid color-mix(in srgb,var(--accent2) 30%,transparent); }
+  .outcome.lose { background:color-mix(in srgb,var(--accent) 10%,var(--card)); border:1px solid color-mix(in srgb,var(--accent) 30%,transparent); }
+  .outcome .olabel { font-family:var(--mono); font-size:10px; letter-spacing:0.1em; margin-bottom:6px; }
+  .outcome.win .olabel { color:var(--accent2); }
+  .outcome.lose .olabel { color:var(--accent); }
+  .outcome .oval { font-family:var(--display); font-size:28px; }
+  .outcome.win .oval { color:var(--accent2); }
+  .outcome.lose .oval { color:var(--accent); }
+
+  .info-box {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:13px 16px; margin-bottom:16px; font-family:var(--mono); font-size:11px;
+    color:var(--text2); line-height:1.75;
+  }
+  .info-box strong { color:var(--accent3); }
+
+  .submit-btn {
+    width:100%; background:var(--accent); color:white; border:none; border-radius:8px;
+    padding:16px; font-family:var(--display); font-size:26px; letter-spacing:0.08em;
+    cursor:pointer; transition:background 0.2s, transform 0.1s; margin-bottom:12px;
+  }
+  .submit-btn:hover:not(:disabled) { background:color-mix(in srgb,var(--accent) 80%,white); }
+  .submit-btn:active:not(:disabled) { transform:scale(0.99); }
+  .submit-btn:disabled { background:var(--muted); cursor:not-allowed; }
+
+  .status-msg { font-family:var(--mono); font-size:12px; color:var(--muted); text-align:center; min-height:18px; margin-bottom:12px; }
+  @keyframes pulse { from{opacity:0.3} to{opacity:1} }
+  .pulsing { animation:pulse 0.9s ease-in-out infinite alternate; }
+
+  .result-panel { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:28px; text-align:center; display:none; margin-bottom:16px; }
+  .result-panel.show { display:block; }
+  .result-label { font-family:var(--mono); font-size:11px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text2); margin-bottom:8px; }
+  .result-prob { font-family:var(--display); font-size:100px; line-height:1; letter-spacing:0.02em; }
+  .result-sub { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:10px; }
+
+  .sweep-btn {
+    width:100%; background:var(--surface); color:var(--text2); border:1px solid var(--border);
+    border-radius:8px; padding:12px; font-family:var(--mono); font-size:12px; letter-spacing:0.06em;
+    cursor:pointer; transition:border-color 0.2s, color 0.2s;
+  }
+  .sweep-btn:hover:not(:disabled) { border-color:var(--accent3); color:var(--accent3); }
+  .sweep-btn:disabled { opacity:0.35; cursor:not-allowed; }
+
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:100; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px; width:min(580px,94vw); max-height:82vh; display:flex; flex-direction:column; }
+  .modal h2 { font-family:var(--display); font-size:30px; color:var(--text); margin-bottom:4px; }
+  .modal .modal-sub { font-family:var(--mono); font-size:11px; color:var(--muted); margin-bottom:14px; }
+  .modal-table { overflow-y:auto; flex:1; margin-bottom:14px; border-radius:6px; border:1px solid var(--border); }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { position:sticky; top:0; background:var(--surface); }
+  th { font-family:var(--mono); font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); padding:10px 14px; text-align:right; border-bottom:1px solid var(--border); }
+  th:first-child { text-align:left; }
+  td { font-family:var(--mono); font-size:12px; padding:8px 14px; text-align:right; color:var(--text2); border-bottom:1px solid color-mix(in srgb,var(--border) 50%,transparent); }
+  td:first-child { text-align:left; color:var(--text); }
+  tr.optimal { background:color-mix(in srgb,var(--accent) 8%,transparent); }
+  tr.optimal td { color:var(--accent); }
+  .close-btn { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:10px; font-family:var(--mono); font-size:12px; cursor:pointer; width:100%; transition:border-color 0.2s; }
+  .close-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  @media(max-width:600px) { .scoreboard { grid-template-columns:repeat(4,1fr); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="eyebrow">Wager Simulator</div>
+    <h1>SIDEMEN<br><span>LAST BET</span></h1>
+    <p>Click your position · set your bet · calculate win probability</p>
+  </header>
+
+  <div class="scoreboard" id="scoreboard"></div>
+
+  <div class="bet-panel">
+    <div class="bet-panel-header">
+      <span class="bet-panel-title">Your bet —</span>
+      <span class="bet-panel-player" id="player-label">Vikk</span>
+    </div>
+    <div class="bet-big" id="bet-display">£1,000</div>
+    <div class="bet-note" id="bet-note">Balance: £23,000 · £1,000 increments</div>
+    <input type="range" id="bet-slider" min="1000" max="23000" step="1000" value="1000">
+    <div class="slider-labels">
+      <span id="slider-min">£1,000</span>
+      <span id="slider-max">£23,000</span>
+    </div>
+    <div class="outcomes">
+      <div class="outcome win">
+        <div class="olabel">FLIP WINS → BALANCE</div>
+        <div class="oval" id="win-val">£24,000</div>
+      </div>
+      <div class="outcome lose">
+        <div class="olabel">FLIP LOSES → BALANCE</div>
+        <div class="oval" id="lose-val">£22,000</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <strong>How this works:</strong> Every possible combination of opponent bets (£1,000 increments up to their balance) is enumerated.
+    For each combination, all 2<sup>7</sup> coin flip outcomes are checked. You win a scenario only if your final balance strictly beats all opponents.
+    <strong>Win % = scenarios where you finish 1st ÷ all scenarios.</strong>
+    &nbsp;·&nbsp; <strong>JJ always bets all-in (£840).</strong>
+  </div>
+
+  <button class="submit-btn" id="submit-btn" onclick="calculate()">CALCULATE ODDS</button>
+  <div class="status-msg" id="status-msg"></div>
+
+  <div class="result-panel" id="result-panel">
+    <div class="result-label">Probability you finish 1st</div>
+    <div class="result-prob" id="result-prob">—</div>
+    <div class="result-sub" id="result-sub"></div>
+  </div>
+
+  <button class="sweep-btn" id="sweep-btn" onclick="sweepAll()" disabled>
+    SWEEP ALL BET SIZES FOR THIS POSITION → FIND OPTIMAL
+  </button>
+
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>SWEEP RESULTS</h2>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="modal-table">
+      <table>
+        <thead><tr>
+          <th>Your Bet</th><th>Win Balance</th><th>Lose Balance</th><th>Win %</th>
+        </tr></thead>
+        <tbody id="modal-body"></tbody>
+      </table>
+    </div>
+    <button class="close-btn" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+const SCORES = { "Josh":36000, "Vikk":23000, "Tobi":20000, "Ethan":18500, "Simon":17000, "Harry":1000, "JJ":840 };
+const ALL_PLAYERS = ["Josh","Vikk","Tobi","Ethan","Simon","Harry","JJ"];
+const INC = 1000;
+
+let selectedPlayer = "Vikk";
+let myBet = 1000;
+
+// Build possible bet arrays for all opponents given a chosen player
+function opponentBetArrays(myPos) {
+  const opps = ALL_PLAYERS.filter(p => p !== myPos);
+  return opps.map(p => {
+    if (p === "JJ") return { p, bets: [840] };
+    const bets = [];
+    for (let b = INC; b <= SCORES[p]; b += INC) bets.push(b);
+    return { p, bets };
+  });
+}
+
+// Core: enumerate every opponent bet combo × every flip outcome
+function computeProb(myPos, myBet) {
+  const myBal = SCORES[myPos];
+  const myWin  = myBal + myBet;
+  const myLose = myBal - myBet;
+
+  const oppData = opponentBetArrays(myPos);
+  const opps    = oppData.map(d => d.p);
+  const oppBets = oppData.map(d => d.bets);
+
+  // Cartesian product of opponent bets
+  let combos = [[]];
+  for (const bets of oppBets) {
+    const next = [];
+    for (const c of combos)
+      for (const b of bets)
+        next.push([...c, b]);
+    combos = next;
+  }
+
+  const nOpp = opps.length;
+  const masks = 1 << (nOpp + 1); // me + all opponents
+  let total = 0, wins = 0;
+
+  for (const combo of combos) {
+    for (let mask = 0; mask < masks; mask++) {
+      const meWins = !!(mask & (1 << nOpp));
+      const myFinal = meWins ? myWin : myLose;
+
+      let iWin = myFinal > 0;
+      if (iWin) {
+        for (let i = 0; i < nOpp; i++) {
+          const pWins = !!(mask & (1 << i));
+          const pFinal = SCORES[opps[i]] + (pWins ? combo[i] : -combo[i]);
+          if (myFinal <= pFinal) { iWin = false; break; }
+        }
+      }
+      total++;
+      if (iWin) wins++;
+    }
+  }
+  return total > 0 ? (wins / total * 100) : 0;
+}
+
+// ── Scoreboard ────────────────────────────────────────────────────────────────
+function buildScoreboard() {
+  const el = document.getElementById('scoreboard');
+  el.innerHTML = '';
+  for (const p of ALL_PLAYERS) {
+    const card = document.createElement('div');
+    card.className = 'score-card' + (p === selectedPlayer ? ' selected' : '');
+    card.id = `card-${p}`;
+    card.innerHTML = `<div class="pos">${p}</div><div class="bal">£${SCORES[p].toLocaleString()}</div><div class="you-tag">▲ YOU</div>`;
+    card.addEventListener('click', () => selectPlayer(p));
+    el.appendChild(card);
+  }
+}
+
+function selectPlayer(p) {
+  selectedPlayer = p;
+  for (const pos of ALL_PLAYERS)
+    document.getElementById(`card-${pos}`).classList.toggle('selected', pos === p);
+
+  const bal = SCORES[p];
+  const slider = document.getElementById('bet-slider');
+
+  if (p === "JJ") {
+    slider.min = 840; slider.max = 840; slider.step = 840; slider.value = 840;
+    myBet = 840;
+  } else {
+    const maxBet = Math.floor(bal / INC) * INC;
+    slider.min = INC; slider.max = maxBet; slider.step = INC; slider.value = INC;
+    myBet = INC;
+  }
+
+  document.getElementById('player-label').textContent = p + ' places';
+  document.getElementById('bet-note').textContent = p === "JJ"
+    ? `Balance: £${bal.toLocaleString()} · JJ always bets all-in`
+    : `Balance: £${bal.toLocaleString()} · £${INC.toLocaleString()} increments`;
+  document.getElementById('slider-min').textContent = p === "JJ" ? '£840' : `£${INC.toLocaleString()}`;
+  document.getElementById('slider-max').textContent = `£${bal.toLocaleString()}`;
+
+  updateBetDisplay();
+  resetResult();
+}
+
+// ── Slider ────────────────────────────────────────────────────────────────────
+document.getElementById('bet-slider').addEventListener('input', function() {
+  myBet = parseInt(this.value);
+  updateBetDisplay();
+  resetResult();
+});
+
+function updateBetDisplay() {
+  const bal = SCORES[selectedPlayer];
+  document.getElementById('bet-display').textContent = '£' + myBet.toLocaleString();
+  document.getElementById('win-val').textContent  = '£' + (bal + myBet).toLocaleString();
+  document.getElementById('lose-val').textContent = '£' + Math.max(0, bal - myBet).toLocaleString();
+}
+
+function resetResult() {
+  document.getElementById('result-panel').classList.remove('show');
+  document.getElementById('status-msg').textContent = '';
+  document.getElementById('sweep-btn').disabled = true;
+}
+
+// ── Calculate ─────────────────────────────────────────────────────────────────
+async function calculate() {
+  const btn = document.getElementById('submit-btn');
+  const status = document.getElementById('status-msg');
+  btn.disabled = true;
+  btn.textContent = 'CALCULATING…';
+  status.innerHTML = '<span class="pulsing">Enumerating all opponent bet combos and flip outcomes…</span>';
+  document.getElementById('result-panel').classList.remove('show');
+
+  await new Promise(r => setTimeout(r, 40)); // let browser paint
+
+  const prob = computeProb(selectedPlayer, myBet);
+  const bal = SCORES[selectedPlayer];
+
+  const el = document.getElementById('result-prob');
+  el.textContent = prob.toFixed(2) + '%';
+  el.style.color = prob >= 20 ? 'var(--accent2)' : prob >= 10 ? 'var(--accent3)' : 'var(--accent)';
+
+  document.getElementById('result-sub').textContent =
+    `${selectedPlayer} place · bet £${myBet.toLocaleString()} · win→£${(bal+myBet).toLocaleString()} · lose→£${Math.max(0,bal-myBet).toLocaleString()}`;
+
+  document.getElementById('result-panel').classList.add('show');
+  status.textContent = '';
+  btn.disabled = false;
+  btn.textContent = 'CALCULATE ODDS';
+  document.getElementById('sweep-btn').disabled = false;
+}
+
+// ── Sweep ─────────────────────────────────────────────────────────────────────
+async function sweepAll() {
+  const sweepBtn  = document.getElementById('sweep-btn');
+  const submitBtn = document.getElementById('submit-btn');
+  const status    = document.getElementById('status-msg');
+  sweepBtn.disabled = true;
+  submitBtn.disabled = true;
+
+  const p   = selectedPlayer;
+  const bal = SCORES[p];
+  const bets = p === "JJ" ? [840] : (() => {
+    const arr = [];
+    for (let b = INC; b <= bal; b += INC) arr.push(b);
+    return arr;
+  })();
+
+  const results = [];
+  for (let i = 0; i < bets.length; i++) {
+    await new Promise(r => setTimeout(r, 0));
+    status.innerHTML = `<span class="pulsing">Sweeping £${bets[i].toLocaleString()} (${i+1}/${bets.length})…</span>`;
+    results.push({ bet: bets[i], prob: computeProb(p, bets[i]) });
+  }
+
+  const best = results.reduce((a, b) => b.prob > a.prob ? b : a);
+  status.textContent = `Optimal: £${best.bet.toLocaleString()} → ${best.prob.toFixed(2)}% win probability`;
+  sweepBtn.disabled = false;
+  submitBtn.disabled = false;
+  showSweepModal(results, best.bet, p);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function showSweepModal(results, bestBet, player) {
+  document.getElementById('modal-sub').textContent =
+    `${player} place · £${INC.toLocaleString()} increments · all ${ALL_PLAYERS.length - 1} opponent bet combos evaluated`;
+  const tbody = document.getElementById('modal-body');
+  tbody.innerHTML = '';
+  const bal = SCORES[player];
+  for (const { bet, prob } of results) {
+    const tr = document.createElement('tr');
+    if (bet === bestBet) tr.className = 'optimal';
+    tr.innerHTML = `
+      <td>£${bet.toLocaleString()}${bet === bestBet ? ' ★' : ''}</td>
+      <td>£${(bal + bet).toLocaleString()}</td>
+      <td>£${Math.max(0, bal - bet).toLocaleString()}</td>
+      <td>${prob.toFixed(2)}%</td>`;
+    tbody.appendChild(tr);
+  }
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => tbody.querySelector('tr.optimal')?.scrollIntoView({ block:'center', behavior:'smooth' }), 100);
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildScoreboard();
+updateBetDisplay();
+</script>
+</body>
+</html>
